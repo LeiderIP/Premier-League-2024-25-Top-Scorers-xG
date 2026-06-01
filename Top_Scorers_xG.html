@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Premier League 2024/25 — Top Scorers vs xG</title>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#020a1e; --panel:#06122e; --panel2:#081840;
+  --blue:#016AF2; --dblue:#00249C; --red:#D41810;
+  --text-pri:#FFF; --text-sec:#6a85b5;
+  --border:rgba(1,106,242,0.28); --grid:rgba(1,106,242,0.08);
+  --font-head:'Bebas Neue',Impact,sans-serif;
+  --font-body:'DM Sans',sans-serif;
+}
+body.light{
+  --bg:#f4f6fb; --panel:#ffffff; --panel2:#eef2fa;
+  --text-pri:#00249C; --text-sec:#5070A0;
+  --border:rgba(0,36,156,0.20); --grid:rgba(0,36,156,0.07);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text-pri);font-family:var(--font-body);
+     min-height:100vh;display:flex;flex-direction:column;align-items:center;
+     transition:background .3s}
+#theme-btn{position:fixed;top:14px;right:18px;z-index:9999;
+  background:rgba(1,106,242,0.12);color:var(--text-pri);
+  border:1.5px solid var(--border);border-radius:6px;
+  padding:6px 16px;font-family:var(--font-body);font-size:12px;
+  letter-spacing:.08em;cursor:pointer;transition:background .2s}
+#theme-btn:hover{background:rgba(1,106,242,0.28)}
+header{width:100%;padding:22px 40px 0;text-align:center}
+header h1{font-family:var(--font-head);font-size:2.6rem;letter-spacing:.08em;line-height:1}
+header p{font-size:.78rem;color:var(--text-sec);letter-spacing:.18em;
+          margin-top:4px;text-transform:uppercase}
+
+/* ── Controls ── */
+.controls{display:flex;align-items:flex-end;gap:14px;margin:18px 0 8px;
+           flex-wrap:wrap;justify-content:center;padding:0 20px}
+.select-wrap{display:flex;flex-direction:column;gap:4px}
+.select-wrap label{font-size:.68rem;letter-spacing:.16em;
+                    color:var(--text-sec);text-transform:uppercase}
+select{background:var(--panel);color:var(--text-pri);
+        border:1.5px solid var(--border);border-radius:6px;
+        padding:8px 34px 8px 14px;font-family:var(--font-body);font-size:.88rem;
+        cursor:pointer;min-width:180px;outline:none;appearance:none;
+        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236a85b5' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat:no-repeat;background-position:right 12px center;
+        transition:border-color .2s}
+select:hover,select:focus{border-color:var(--blue)}
+
+/* ── Legend pills ── */
+.legend-row{display:flex;gap:18px;justify-content:center;
+             margin:4px 0 8px;font-size:.75rem;color:var(--text-sec)}
+.legend-item{display:flex;align-items:center;gap:6px}
+.leg-line{width:28px;height:2px;border-radius:1px}
+.leg-dot{width:12px;height:12px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.4)}
+
+/* ── Chart ── */
+#chart{width:100%;max-width:1100px;height:620px;
+        border:1px solid var(--border);border-radius:10px;
+        background:var(--panel);margin:0 20px}
+
+/* ── Table ── */
+.table-wrap{width:100%;max-width:1100px;margin:16px 20px 0;
+             overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.82rem;
+       background:var(--panel);border:1px solid var(--border);border-radius:10px;
+       overflow:hidden}
+th{background:var(--panel2);color:var(--text-sec);font-weight:500;
+    letter-spacing:.10em;font-size:.68rem;text-transform:uppercase;
+    padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+td{padding:9px 14px;border-bottom:1px solid rgba(1,106,242,0.07);
+    color:var(--text-pri)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(1,106,242,0.06)}
+.diff-pos{color:#00C853;font-weight:600}
+.diff-neg{color:#FF5252;font-weight:600}
+.diff-neu{color:var(--text-sec)}
+
+footer{margin:16px 0 24px;font-size:.68rem;color:var(--text-sec);
+        letter-spacing:.10em;text-align:center}
+</style>
+</head>
+<body>
+
+<button id="theme-btn" onclick="toggleTheme()">&#9728; LIGHT MODE</button>
+
+<header>
+  <h1>Premier League 2024 · 25</h1>
+  <p>Top Scorers vs Expected Goals (xG) &nbsp;·&nbsp; StatsBomb Event Data</p>
+</header>
+
+<div class="controls">
+  <div class="select-wrap">
+    <label>Filter by team</label>
+    <select id="sel-team" onchange="render()">
+      <option value="all">All Teams</option>
+    </select>
+  </div>
+  <div class="select-wrap">
+    <label>Minimum shots</label>
+    <select id="sel-min-shots" onchange="render()">
+      <option value="1">1+ shots</option>
+      <option value="10">10+ shots</option>
+      <option value="20" selected>20+ shots</option>
+      <option value="40">40+ shots</option>
+      <option value="60">60+ shots</option>
+    </select>
+  </div>
+  <div class="select-wrap">
+    <label>Show top</label>
+    <select id="sel-top-n" onchange="render()">
+      <option value="20">Top 20</option>
+      <option value="30" selected>Top 30</option>
+      <option value="50">Top 50</option>
+      <option value="0">All players</option>
+    </select>
+  </div>
+</div>
+
+<!-- Diagonal line legend -->
+<div class="legend-row">
+  <div class="legend-item">
+    <div class="leg-line" style="background:rgba(255,255,255,0.25);border-top:2px dashed rgba(255,255,255,0.25)"></div>
+    <span>Goals = xG line</span>
+  </div>
+  <div class="legend-item">
+    <div class="leg-dot" style="background:#00C853"></div>
+    <span>Overperformer (Goals &gt; xG)</span>
+  </div>
+  <div class="legend-item">
+    <div class="leg-dot" style="background:#FF5252"></div>
+    <span>Underperformer (Goals &lt; xG)</span>
+  </div>
+  <div class="legend-item">
+    <span style="font-size:.72rem">Circle size = shots taken</span>
+  </div>
+</div>
+
+<div id="chart"></div>
+
+<!-- Sortable table -->
+<div class="table-wrap">
+  <table id="stats-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Player</th>
+        <th>Team</th>
+        <th>Goals</th>
+        <th>xG</th>
+        <th>+/- xG</th>
+        <th>Shots</th>
+        <th>Conv %</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<footer>Data © StatsBomb &nbsp;·&nbsp; Premier League 2024/25 &nbsp;·&nbsp; Built with Python &amp; Plotly.js</footer>
+
+<script>
+// ── Embedded data ─────────────────────────────────────────────────────────────
+const ALL_PLAYERS = [{"player": "Mohamed Salah", "team": "Liverpool", "goals": 29, "xg": 22.24, "shots": 131, "diff": 6.76}, {"player": "Alexander Isak", "team": "Newcastle United", "goals": 23, "xg": 18.21, "shots": 101, "diff": 4.79}, {"player": "Erling Håland", "team": "Manchester City", "goals": 22, "xg": 20.8, "shots": 111, "diff": 1.2}, {"player": "Bryan Mbeumo", "team": "Brentford", "goals": 20, "xg": 11.39, "shots": 86, "diff": 8.61}, {"player": "Chris Wood", "team": "Nottingham Forest", "goals": 20, "xg": 12.44, "shots": 69, "diff": 7.56}, {"player": "Yoane Wissa", "team": "Brentford", "goals": 18, "xg": 18.43, "shots": 90, "diff": -0.43}, {"player": "Ollie Watkins", "team": "Aston Villa", "goals": 16, "xg": 14.76, "shots": 84, "diff": 1.24}, {"player": "Cole Palmer", "team": "Chelsea", "goals": 15, "xg": 15.46, "shots": 126, "diff": -0.46}, {"player": "Matheus Santos Carneiro da Cunha", "team": "Wolverhampton Wanderers", "goals": 15, "xg": 7.58, "shots": 111, "diff": 7.42}, {"player": "Jørgen Strand Larsen", "team": "Wolverhampton Wanderers", "goals": 14, "xg": 10.24, "shots": 55, "diff": 3.76}, {"player": "Jean-Philippe Mateta", "team": "Crystal Palace", "goals": 14, "xg": 13.05, "shots": 71, "diff": 0.95}, {"player": "Jarrod Bowen", "team": "West Ham United", "goals": 13, "xg": 8.16, "shots": 88, "diff": 4.84}, {"player": "Luis Fernando Díaz Marulanda", "team": "Liverpool", "goals": 13, "xg": 11.25, "shots": 71, "diff": 1.75}, {"player": "Justin Kluivert", "team": "AFC Bournemouth", "goals": 12, "xg": 9.87, "shots": 63, "diff": 2.13}, {"player": "Raúl Alonso Jiménez Rodríguez", "team": "Fulham", "goals": 12, "xg": 10.63, "shots": 97, "diff": 1.37}, {"player": "Liam Delap", "team": "Ipswich Town", "goals": 12, "xg": 9.41, "shots": 68, "diff": 2.59}, {"player": "Kevin Schade", "team": "Brentford", "goals": 11, "xg": 7.97, "shots": 55, "diff": 3.03}, {"player": "Brennan Johnson", "team": "Tottenham Hotspur", "goals": 11, "xg": 9.6, "shots": 54, "diff": 1.4}, {"player": "Antoine Semenyo", "team": "AFC Bournemouth", "goals": 11, "xg": 9.69, "shots": 125, "diff": 1.31}, {"player": "Nicolas Jackson", "team": "Chelsea", "goals": 10, "xg": 12.11, "shots": 76, "diff": -2.11}, {"player": "Dominic Solanke", "team": "Tottenham Hotspur", "goals": 10, "xg": 11.77, "shots": 62, "diff": -1.77}, {"player": "Francisco Evanilson de Lima Barbosa", "team": "AFC Bournemouth", "goals": 10, "xg": 11.75, "shots": 73, "diff": -1.75}, {"player": "Daniel Nii Tackie Mensah Welbeck", "team": "Brighton & Hove Albion", "goals": 10, "xg": 8.81, "shots": 61, "diff": 1.19}, {"player": "Cody Mathès Gakpo", "team": "Liverpool", "goals": 10, "xg": 5.93, "shots": 58, "diff": 4.07}, {"player": "João Pedro Junqueira de Jesus", "team": "Brighton & Hove Albion", "goals": 10, "xg": 8.72, "shots": 47, "diff": 1.28}, {"player": "Kaoru Mitoma", "team": "Brighton & Hove Albion", "goals": 10, "xg": 8.17, "shots": 56, "diff": 1.83}, {"player": "Kai Havertz", "team": "Arsenal", "goals": 9, "xg": 8.47, "shots": 53, "diff": 0.53}, {"player": "Tomáš Souček", "team": "West Ham United", "goals": 9, "xg": 7.02, "shots": 55, "diff": 1.98}, {"player": "Alex Iwobi", "team": "Fulham", "goals": 9, "xg": 4.33, "shots": 68, "diff": 4.67}, {"player": "Harvey Lewis Barnes", "team": "Newcastle United", "goals": 9, "xg": 6.81, "shots": 63, "diff": 2.19}, {"player": "Jamie Vardy", "team": "Leicester City", "goals": 9, "xg": 10.26, "shots": 58, "diff": -1.26}, {"player": "Iliman Ndiaye", "team": "Everton", "goals": 9, "xg": 6.25, "shots": 37, "diff": 2.75}, {"player": "James Maddison", "team": "Tottenham Hotspur", "goals": 9, "xg": 4.99, "shots": 40, "diff": 4.01}, {"player": "Rodrigo Muniz Carvalho", "team": "Fulham", "goals": 8, "xg": 5.0, "shots": 40, "diff": 3.0}, {"player": "Norberto Bercique Gomes Betuncal", "team": "Everton", "goals": 8, "xg": 7.35, "shots": 49, "diff": 0.65}, {"player": "Amad Diallo Traoré", "team": "Manchester United", "goals": 8, "xg": 3.91, "shots": 47, "diff": 4.09}, {"player": "Bruno Miguel Borges Fernandes", "team": "Manchester United", "goals": 8, "xg": 8.69, "shots": 96, "diff": -0.69}, {"player": "Leandro Trossard", "team": "Arsenal", "goals": 8, "xg": 7.45, "shots": 73, "diff": 0.55}, {"player": "Jacob Murphy", "team": "Newcastle United", "goals": 8, "xg": 4.85, "shots": 43, "diff": 3.15}, {"player": "Eberechi Eze", "team": "Crystal Palace", "goals": 8, "xg": 9.36, "shots": 103, "diff": -1.36}, {"player": "Gabriel Teodoro Martinelli Silva", "team": "Arsenal", "goals": 8, "xg": 6.45, "shots": 56, "diff": 1.55}, {"player": "Ismaïla Sarr", "team": "Crystal Palace", "goals": 8, "xg": 9.21, "shots": 61, "diff": -1.21}, {"player": "Morgan Rogers", "team": "Aston Villa", "goals": 8, "xg": 6.99, "shots": 55, "diff": 1.01}, {"player": "Dango Aboubacar Faissal Ouattara", "team": "AFC Bournemouth", "goals": 7, "xg": 7.57, "shots": 62, "diff": -0.57}, {"player": "Phil Foden", "team": "Manchester City", "goals": 7, "xg": 4.95, "shots": 54, "diff": 2.05}, {"player": "Chukwunonso Madueke", "team": "Chelsea", "goals": 7, "xg": 9.17, "shots": 80, "diff": -2.17}, {"player": "Morgan Gibbs-White", "team": "Nottingham Forest", "goals": 7, "xg": 5.38, "shots": 62, "diff": 1.62}, {"player": "Omar Marmoush", "team": "Manchester City", "goals": 7, "xg": 4.65, "shots": 49, "diff": 2.35}, {"player": "Heung-Min Son", "team": "Tottenham Hotspur", "goals": 7, "xg": 7.64, "shots": 57, "diff": -0.64}, {"player": "Jhon Jáder Durán Palacio", "team": "Aston Villa", "goals": 7, "xg": 4.71, "shots": 32, "diff": 2.29}, {"player": "Mikel Merino Zazón", "team": "Arsenal", "goals": 7, "xg": 4.62, "shots": 39, "diff": 2.38}, {"player": "Dejan Kulusevski", "team": "Tottenham Hotspur", "goals": 7, "xg": 4.17, "shots": 48, "diff": 2.83}, {"player": "Enzo Fernandez", "team": "Chelsea", "goals": 6, "xg": 4.81, "shots": 53, "diff": 1.19}, {"player": "Anthony Elanga", "team": "Nottingham Forest", "goals": 6, "xg": 4.36, "shots": 44, "diff": 1.64}, {"player": "Yankuba Minteh", "team": "Brighton & Hove Albion", "goals": 6, "xg": 4.55, "shots": 34, "diff": 1.45}, {"player": "Dominik Szoboszlai", "team": "Liverpool", "goals": 6, "xg": 6.3, "shots": 67, "diff": -0.3}, {"player": "Diogo José Teixeira da Silva", "team": "Liverpool", "goals": 6, "xg": 7.39, "shots": 53, "diff": -1.39}, {"player": "Anthony Gordon", "team": "Newcastle United", "goals": 6, "xg": 7.16, "shots": 60, "diff": -1.16}, {"player": "Emile Smith Rowe", "team": "Fulham", "goals": 6, "xg": 4.42, "shots": 36, "diff": 1.58}, {"player": "Harry Wilson", "team": "Fulham", "goals": 6, "xg": 3.39, "shots": 43, "diff": 2.61}, {"player": "Alejandro Garnacho Ferreyra", "team": "Manchester United", "goals": 6, "xg": 7.86, "shots": 84, "diff": -1.86}, {"player": "Bukayo Saka", "team": "Arsenal", "goals": 6, "xg": 6.49, "shots": 68, "diff": -0.49}, {"player": "Marc Guehi", "team": "Crystal Palace", "goals": 6, "xg": 4.86, "shots": 18, "diff": 1.14}, {"player": "Mateo Kovačić", "team": "Manchester City", "goals": 6, "xg": 1.91, "shots": 45, "diff": 4.09}, {"player": "Mohammed Kudus", "team": "West Ham United", "goals": 5, "xg": 6.69, "shots": 75, "diff": -1.69}, {"player": "Alexis Mac Allister", "team": "Liverpool", "goals": 5, "xg": 2.59, "shots": 38, "diff": 2.41}, {"player": "Facundo Valentín Buonanotte", "team": "Leicester City", "goals": 5, "xg": 3.76, "shots": 36, "diff": 1.24}, {"player": "Georginio Rutter", "team": "Brighton & Hove Albion", "goals": 5, "xg": 4.5, "shots": 50, "diff": 0.5}, {"player": "Marc Cucurella Saseta", "team": "Chelsea", "goals": 5, "xg": 2.46, "shots": 24, "diff": 2.54}, {"player": "Christian Nørgaard", "team": "Brentford", "goals": 5, "xg": 3.8, "shots": 40, "diff": 1.2}, {"player": "Nikola Milenković", "team": "Nottingham Forest", "goals": 5, "xg": 3.77, "shots": 29, "diff": 1.23}, {"player": "Jack Hinshelwood", "team": "Brighton & Hove Albion", "goals": 5, "xg": 2.54, "shots": 18, "diff": 2.46}, {"player": "Callum Hudson-Odoi", "team": "Nottingham Forest", "goals": 5, "xg": 2.19, "shots": 37, "diff": 2.81}, {"player": "Bruno Guimarães Rodriguez Moura", "team": "Newcastle United", "goals": 5, "xg": 4.73, "shots": 45, "diff": 0.27}, {"player": "Joško Gvardiol", "team": "Manchester City", "goals": 5, "xg": 4.36, "shots": 40, "diff": 0.64}, {"player": "Jordan Ayew", "team": "Leicester City", "goals": 5, "xg": 3.15, "shots": 32, "diff": 1.85}, {"player": "Darwin Gabriel Núñez Ribeiro", "team": "Liverpool", "goals": 5, "xg": 5.02, "shots": 34, "diff": -0.02}, {"player": "Bernardo Mota Veiga de Carvalho e Silva", "team": "Manchester City", "goals": 4, "xg": 3.9, "shots": 32, "diff": 0.1}, {"player": "Kouassi Ryan Sessegnon", "team": "Fulham", "goals": 4, "xg": 1.42, "shots": 14, "diff": 2.58}, {"player": "Lucas Tolentino Coelho de Lima", "team": "West Ham United", "goals": 4, "xg": 5.02, "shots": 42, "diff": -1.02}, {"player": "Kevin De Bruyne", "team": "Manchester City", "goals": 4, "xg": 4.63, "shots": 57, "diff": -0.63}, {"player": "Thomas Teye Partey", "team": "Arsenal", "goals": 4, "xg": 1.93, "shots": 26, "diff": 2.07}, {"player": "Joelinton Cassio Apolinário de Lira", "team": "Newcastle United", "goals": 4, "xg": 3.86, "shots": 47, "diff": 0.14}, {"player": "Marcus Rashford", "team": "Manchester United", "goals": 4, "xg": 1.54, "shots": 17, "diff": 2.46}, {"player": "Paul Onuachu", "team": "Southampton", "goals": 4, "xg": 3.71, "shots": 36, "diff": 0.29}, {"player": "Sandro Tonali", "team": "Newcastle United", "goals": 4, "xg": 3.62, "shots": 35, "diff": 0.38}, {"player": "Stephy Alvaro Mavididi", "team": "Leicester City", "goals": 4, "xg": 2.22, "shots": 26, "diff": 1.78}, {"player": "Daniel Muñoz Mejía", "team": "Crystal Palace", "goals": 4, "xg": 4.96, "shots": 37, "diff": -0.96}, {"player": "Samuel Szmodics", "team": "Ipswich Town", "goals": 4, "xg": 3.1, "shots": 21, "diff": 0.9}, {"player": "Pedro Lomba Neto", "team": "Chelsea", "goals": 4, "xg": 3.71, "shots": 59, "diff": 0.29}, {"player": "Richarlison de Andrade", "team": "Tottenham Hotspur", "goals": 4, "xg": 3.11, "shots": 17, "diff": 0.89}, {"player": "Rasmus Winther Højlund", "team": "Manchester United", "goals": 4, "xg": 4.81, "shots": 33, "diff": -0.81}, {"player": "Dwight McNeil", "team": "Everton", "goals": 4, "xg": 1.08, "shots": 25, "diff": 2.92}, {"player": "Fabian Lukas Schär", "team": "Newcastle United", "goals": 4, "xg": 3.82, "shots": 40, "diff": 0.18}, {"player": "Rayan Aït Nouri", "team": "Wolverhampton Wanderers", "goals": 4, "xg": 3.09, "shots": 36, "diff": 0.91}, {"player": "Declan Rice", "team": "Arsenal", "goals": 4, "xg": 3.11, "shots": 48, "diff": 0.89}, {"player": "Ethan Chidiebere Nwaneri", "team": "Arsenal", "goals": 4, "xg": 1.32, "shots": 24, "diff": 2.68}, {"player": "Aaron Wan-Bissaka", "team": "West Ham United", "goals": 3, "xg": 2.2, "shots": 17, "diff": 0.8}, {"player": "Pablo Sarabia García", "team": "Wolverhampton Wanderers", "goals": 3, "xg": 1.97, "shots": 17, "diff": 1.03}, {"player": "Vitaly Janelt", "team": "Brentford", "goals": 3, "xg": 2.92, "shots": 17, "diff": 0.08}, {"player": "Virgil van Dijk", "team": "Liverpool", "goals": 3, "xg": 2.17, "shots": 27, "diff": 0.83}, {"player": "Youri Tielemans", "team": "Aston Villa", "goals": 3, "xg": 3.23, "shots": 41, "diff": -0.23}, {"player": "Abdoulaye Doucouré", "team": "Everton", "goals": 3, "xg": 3.23, "shots": 31, "diff": -0.23}, {"player": "Edward Nketiah", "team": "Crystal Palace", "goals": 3, "xg": 5.93, "shots": 43, "diff": -2.93}, {"player": "Ethan Pinnock", "team": "Brentford", "goals": 3, "xg": 1.86, "shots": 11, "diff": 1.14}, {"player": "Dean Donny Huijsen", "team": "AFC Bournemouth", "goals": 3, "xg": 1.26, "shots": 19, "diff": 1.74}, {"player": "Pape Matar Sarr", "team": "Tottenham Hotspur", "goals": 3, "xg": 2.25, "shots": 34, "diff": 0.75}, {"player": "Curtis Jones", "team": "Liverpool", "goals": 3, "xg": 3.59, "shots": 34, "diff": -0.59}, {"player": "Dominic Calvert-Lewin", "team": "Everton", "goals": 3, "xg": 6.1, "shots": 50, "diff": -3.1}, {"player": "Donyell Malen", "team": "Aston Villa", "goals": 3, "xg": 2.68, "shots": 15, "diff": 0.32}, {"player": "Dan Burn", "team": "Newcastle United", "goals": 3, "xg": 4.48, "shots": 26, "diff": -1.48}, {"player": "George Hirst", "team": "Ipswich Town", "goals": 3, "xg": 2.01, "shots": 14, "diff": 0.99}, {"player": "Gabriel Fernando de Jesus", "team": "Arsenal", "goals": 3, "xg": 2.63, "shots": 20, "diff": 0.37}, {"player": "Gabriel dos Santos Magalhães", "team": "Arsenal", "goals": 3, "xg": 2.32, "shots": 24, "diff": 0.68}, {"player": "Joe Aribo", "team": "Southampton", "goals": 3, "xg": 2.23, "shots": 17, "diff": 0.77}, {"player": "Michael Keane", "team": "Everton", "goals": 3, "xg": 0.71, "shots": 10, "diff": 2.29}, {"player": "João Victor Gomes da Silva", "team": "Wolverhampton Wanderers", "goals": 3, "xg": 2.74, "shots": 35, "diff": 0.26}, {"player": "João Pedro Ferreira Silva", "team": "Nottingham Forest", "goals": 3, "xg": 2.05, "shots": 23, "diff": 0.95}, {"player": "Joshua Zirkzee", "team": "Manchester United", "goals": 3, "xg": 4.06, "shots": 28, "diff": -1.06}, {"player": "Matt Doherty", "team": "Wolverhampton Wanderers", "goals": 3, "xg": 2.02, "shots": 11, "diff": 0.98}, {"player": "Matthew O'Riley", "team": "Brighton & Hove Albion", "goals": 3, "xg": 3.59, "shots": 23, "diff": -0.59}, {"player": "Martin Ødegaard", "team": "Arsenal", "goals": 3, "xg": 4.73, "shots": 50, "diff": -1.73}, {"player": "Niclas Füllkrug", "team": "West Ham United", "goals": 3, "xg": 2.09, "shots": 16, "diff": 0.91}, {"player": "Jeremy Doku", "team": "Manchester City", "goals": 3, "xg": 1.46, "shots": 29, "diff": 1.54}, {"player": "Christopher Nkunku", "team": "Chelsea", "goals": 3, "xg": 3.64, "shots": 25, "diff": -0.64}, {"player": "Carlos Baleba", "team": "Brighton & Hove Albion", "goals": 3, "xg": 2.48, "shots": 44, "diff": 0.52}, {"player": "James McAtee", "team": "Manchester City", "goals": 3, "xg": 2.56, "shots": 12, "diff": 0.44}, {"player": "Jadon Sancho", "team": "Chelsea", "goals": 3, "xg": 1.65, "shots": 24, "diff": 1.35}, {"player": "Ross Barkley", "team": "Aston Villa", "goals": 3, "xg": 1.43, "shots": 17, "diff": 1.57}, {"player": "Omari Giraud-Hutchinson", "team": "Ipswich Town", "goals": 3, "xg": 2.75, "shots": 45, "diff": 0.25}, {"player": "Marcus Tavernier", "team": "AFC Bournemouth", "goals": 3, "xg": 5.25, "shots": 57, "diff": -2.25}, {"player": "Amadou Onana", "team": "Aston Villa", "goals": 3, "xg": 1.84, "shots": 17, "diff": 1.16}, {"player": "Trevoh Chalobah", "team": "Crystal Palace", "goals": 3, "xg": 1.3, "shots": 11, "diff": 1.7}, {"player": "Marco Asensio Willemsen", "team": "Aston Villa", "goals": 3, "xg": 3.88, "shots": 24, "diff": -0.88}, {"player": "Trent Alexander-Arnold", "team": "Liverpool", "goals": 3, "xg": 1.88, "shots": 45, "diff": 1.12}, {"player": "Craig Dawson", "team": "Wolverhampton Wanderers", "goals": 2, "xg": 2.6, "shots": 8, "diff": -0.6}, {"player": "Rodrigo Martins Gomes", "team": "Wolverhampton Wanderers", "goals": 2, "xg": 0.71, "shots": 7, "diff": 1.29}, {"player": "Sam Morsy", "team": "Ipswich Town", "goals": 2, "xg": 1.38, "shots": 14, "diff": 0.62}, {"player": "Nathan Michael Collins", "team": "Brentford", "goals": 2, "xg": 1.78, "shots": 16, "diff": 0.22}, {"player": "Murillo Santiago Costa dos Santos", "team": "Nottingham Forest", "goals": 2, "xg": 1.44, "shots": 26, "diff": 0.56}, {"player": "Tariq Lamptey", "team": "Brighton & Hove Albion", "goals": 2, "xg": 0.39, "shots": 6, "diff": 1.61}, {"player": "Ryan Yates", "team": "Nottingham Forest", "goals": 2, "xg": 2.67, "shots": 34, "diff": -0.67}, {"player": "Jaden Philogene-Bidace", "team": "Ipswich Town", "goals": 2, "xg": 2.23, "shots": 12, "diff": -0.23}, {"player": "Jake O'Brien", "team": "Everton", "goals": 2, "xg": 0.97, "shots": 6, "diff": 1.03}, {"player": "Nico O'Reilly", "team": "Manchester City", "goals": 2, "xg": 1.02, "shots": 8, "diff": 0.98}, {"player": "Rodrigo Bentancur Colmán", "team": "Tottenham Hotspur", "goals": 2, "xg": 1.49, "shots": 25, "diff": 0.51}, {"player": "Pedro Antonio Porro Sauceda", "team": "Tottenham Hotspur", "goals": 2, "xg": 1.48, "shots": 39, "diff": 0.52}, {"player": "Riccardo Calafiori", "team": "Arsenal", "goals": 2, "xg": 0.57, "shots": 10, "diff": 1.43}, {"player": "Fabio Carvalho", "team": "Brentford", "goals": 2, "xg": 2.21, "shots": 12, "diff": -0.21}, {"player": "Elliot Anderson", "team": "Nottingham Forest", "goals": 2, "xg": 2.08, "shots": 40, "diff": -0.08}, {"player": "Gonçalo Manuel Ganchinho Guedes", "team": "Wolverhampton Wanderers", "goals": 2, "xg": 2.4, "shots": 27, "diff": -0.4}, {"player": "Djed Spence", "team": "Tottenham Hotspur", "goals": 2, "xg": 1.44, "shots": 11, "diff": 0.56}, {"player": "Hee-Chan Hwang", "team": "Wolverhampton Wanderers", "goals": 2, "xg": 0.78, "shots": 5, "diff": 1.22}, {"player": "Ezri Konsa Ngoyo", "team": "Aston Villa", "goals": 2, "xg": 1.46, "shots": 11, "diff": 0.54}, {"player": "David Brooks", "team": "AFC Bournemouth", "goals": 2, "xg": 2.29, "shots": 26, "diff": -0.29}, {"player": "Adama Traoré Diarra", "team": "Fulham", "goals": 2, "xg": 4.03, "shots": 39, "diff": -2.03}, {"player": "Emerson Palmieri dos Santos", "team": "West Ham United", "goals": 2, "xg": 1.44, "shots": 16, "diff": 0.56}, {"player": "Enes Ünal", "team": "AFC Bournemouth", "goals": 2, "xg": 2.72, "shots": 20, "diff": -0.72}, {"player": "William Saliba", "team": "Arsenal", "goals": 2, "xg": 2.0, "shots": 7, "diff": 0.0}, {"player": "Tyler-Jay Robert Dibling", "team": "Southampton", "goals": 2, "xg": 2.55, "shots": 28, "diff": -0.55}, {"player": "Yasin Abbas Ayari", "team": "Brighton & Hove Albion", "goals": 2, "xg": 2.11, "shots": 29, "diff": -0.11}, {"player": "Yves Bissouma", "team": "Tottenham Hotspur", "goals": 2, "xg": 0.47, "shots": 11, "diff": 1.53}, {"player": "Carlos Alcaraz", "team": "Everton", "goals": 2, "xg": 1.54, "shots": 26, "diff": 0.46}, {"player": "Mathys Tel", "team": "Tottenham Hotspur", "goals": 2, "xg": 2.81, "shots": 23, "diff": -0.81}, {"player": "Matthijs de Ligt", "team": "Manchester United", "goals": 2, "xg": 2.53, "shots": 18, "diff": -0.53}, {"player": "Nathan Broadhead", "team": "Ipswich Town", "goals": 2, "xg": 1.25, "shots": 13, "diff": 0.75}, {"player": "Mikkel Damsgaard", "team": "Brentford", "goals": 2, "xg": 2.63, "shots": 35, "diff": -0.63}, {"player": "Cameron Archer", "team": "Southampton", "goals": 2, "xg": 5.82, "shots": 29, "diff": -3.82}, {"player": "Mateus Gonçalo Espanha Fernandes", "team": "Southampton", "goals": 2, "xg": 3.13, "shots": 42, "diff": -1.13}, {"player": "Julio César Enciso Espínola", "team": "Ipswich Town", "goals": 2, "xg": 2.01, "shots": 33, "diff": -0.01}, {"player": "Levi Colwill", "team": "Chelsea", "goals": 2, "xg": 2.33, "shots": 17, "diff": -0.33}, {"player": "Manuel Ugarte Ribeiro", "team": "Manchester United", "goals": 2, "xg": 2.05, "shots": 20, "diff": -0.05}, {"player": "Adam Armstrong", "team": "Southampton", "goals": 2, "xg": 3.42, "shots": 26, "diff": -1.42}, {"player": "Lisandro Martínez", "team": "Manchester United", "goals": 2, "xg": 1.08, "shots": 17, "diff": 0.92}, {"player": "Andreas Hoelgebaum Pereira", "team": "Fulham", "goals": 2, "xg": 3.81, "shots": 40, "diff": -1.81}, {"player": "Bilal El Khannous", "team": "Leicester City", "goals": 2, "xg": 1.38, "shots": 30, "diff": 0.62}, {"player": "Marcus Rashford", "team": "Aston Villa", "goals": 2, "xg": 2.32, "shots": 19, "diff": -0.32}, {"player": "Marshall Nyasha Munetsi", "team": "Wolverhampton Wanderers", "goals": 2, "xg": 2.65, "shots": 22, "diff": -0.65}, {"player": "Jean-Ricner Bellegarde", "team": "Wolverhampton Wanderers", "goals": 2, "xg": 1.64, "shots": 22, "diff": 0.36}, {"player": "Temitayo Olufisayo Olaoluwa Aina", "team": "Nottingham Forest", "goals": 2, "xg": 0.53, "shots": 11, "diff": 1.47}, {"player": "Simon Adingra", "team": "Brighton & Hove Albion", "goals": 2, "xg": 2.64, "shots": 33, "diff": -0.64}, {"player": "Jan Bednarek", "team": "Southampton", "goals": 2, "xg": 0.57, "shots": 5, "diff": 1.43}, {"player": "James Justin", "team": "Leicester City", "goals": 2, "xg": 1.61, "shots": 25, "diff": 0.39}, {"player": "John Stones", "team": "Manchester City", "goals": 2, "xg": 0.45, "shots": 2, "diff": 1.55}, {"player": "Milos Kerkez", "team": "AFC Bournemouth", "goals": 2, "xg": 0.71, "shots": 21, "diff": 1.29}, {"player": "Tom Cairney", "team": "Fulham", "goals": 2, "xg": 0.78, "shots": 11, "diff": 1.22}, {"player": "Ryan Christie", "team": "AFC Bournemouth", "goals": 2, "xg": 1.87, "shots": 33, "diff": 0.13}, {"player": "Evan Ferguson", "team": "Brighton & Hove Albion", "goals": 1, "xg": 0.55, "shots": 7, "diff": 0.45}, {"player": "Wilson Odobert", "team": "Tottenham Hotspur", "goals": 1, "xg": 1.67, "shots": 13, "diff": -0.67}, {"player": "Wout Faes", "team": "Leicester City", "goals": 1, "xg": 1.37, "shots": 12, "diff": -0.37}, {"player": "Emmanuel Agbadou", "team": "Wolverhampton Wanderers", "goals": 1, "xg": 0.63, "shots": 7, "diff": 0.37}, {"player": "Rico Lewis", "team": "Manchester City", "goals": 1, "xg": 1.43, "shots": 10, "diff": -0.43}, {"player": "İlkay Gündoğan", "team": "Manchester City", "goals": 1, "xg": 2.97, "shots": 28, "diff": -1.97}, {"player": "William Idamudia Daugaard Osula", "team": "Newcastle United", "goals": 1, "xg": 0.32, "shots": 4, "diff": 0.68}, {"player": "Orel Mangala", "team": "Everton", "goals": 1, "xg": 0.84, "shots": 16, "diff": 0.16}, {"player": "Patson Daka", "team": "Leicester City", "goals": 1, "xg": 1.58, "shots": 15, "diff": -0.58}, {"player": "Harrison Clarke", "team": "Ipswich Town", "goals": 1, "xg": 1.08, "shots": 2, "diff": -0.08}, {"player": "Harry Maguire", "team": "Manchester United", "goals": 1, "xg": 1.96, "shots": 17, "diff": -0.96}, {"player": "Ferdi Erenay Kadıoğlu", "team": "Brighton & Hove Albion", "goals": 1, "xg": 0.45, "shots": 4, "diff": 0.55}, {"player": "Flynn Downes", "team": "Southampton", "goals": 1, "xg": 0.62, "shots": 10, "diff": 0.38}, {"player": "Ian Maatsen", "team": "Aston Villa", "goals": 1, "xg": 0.85, "shots": 19, "diff": 0.15}, {"player": "Harvey Elliott", "team": "Liverpool", "goals": 1, "xg": 1.25, "shots": 17, "diff": -0.25}, {"player": "Diego Alexander Gómez Amarilla", "team": "Brighton & Hove Albion", "goals": 1, "xg": 0.64, "shots": 9, "diff": 0.36}, {"player": "Daniel Jebbison", "team": "AFC Bournemouth", "goals": 1, "xg": 0.82, "shots": 5, "diff": 0.18}, {"player": "Ramón Sosa Acosta", "team": "Nottingham Forest", "goals": 1, "xg": 1.46, "shots": 11, "diff": -0.46}, {"player": "Pervis Josué Estupiñán Tenorio", "team": "Brighton & Hove Albion", "goals": 1, "xg": 1.06, "shots": 29, "diff": -0.06}, {"player": "Reiss Nelson", "team": "Fulham", "goals": 1, "xg": 1.13, "shots": 12, "diff": -0.13}, {"player": "Reece James", "team": "Chelsea", "goals": 1, "xg": 0.38, "shots": 11, "diff": 0.62}, {"player": "Cristian Gabriel Romero", "team": "Tottenham Hotspur", "goals": 1, "xg": 1.64, "shots": 16, "diff": -0.64}, {"player": "Crysencio Summerville", "team": "West Ham United", "goals": 1, "xg": 1.95, "shots": 14, "diff": -0.95}, {"player": "Yukinari Sugawara", "team": "Southampton", "goals": 1, "xg": 0.47, "shots": 14, "diff": 0.53}, {"player": "Tyrique George", "team": "Chelsea", "goals": 1, "xg": 0.18, "shots": 3, "diff": 0.82}, {"player": "Archie Gray", "team": "Tottenham Hotspur", "goals": 1, "xg": 1.04, "shots": 2, "diff": -0.04}, {"player": "Andrew Robertson", "team": "Liverpool", "goals": 1, "xg": 2.06, "shots": 16, "diff": -1.06}, {"player": "Vladimír Coufal", "team": "West Ham United", "goals": 1, "xg": 1.27, "shots": 8, "diff": -0.27}, {"player": "William Anthony Patrick Smallbone", "team": "Southampton", "goals": 1, "xg": 0.61, "shots": 7, "diff": 0.39}, {"player": "Vitalii Mykolenko", "team": "Everton", "goals": 1, "xg": 0.67, "shots": 14, "diff": 0.33}, {"player": "Victor Bernth Kristansen", "team": "Leicester City", "goals": 1, "xg": 1.27, "shots": 4, "diff": -0.27}, {"player": "Nicolás González Iglesias", "team": "Manchester City", "goals": 1, "xg": 0.54, "shots": 9, "diff": 0.46}, {"player": "Jacob Ramsey", "team": "Aston Villa", "goals": 1, "xg": 1.59, "shots": 19, "diff": -0.59}, {"player": "Jakub Piotr Kiwior", "team": "Arsenal", "goals": 1, "xg": 0.15, "shots": 3, "diff": 0.85}, {"player": "Daniel William John Ings", "team": "West Ham United", "goals": 1, "xg": 1.59, "shots": 14, "diff": -0.59}, {"player": "Iyenoma Destiny Udogie", "team": "Tottenham Hotspur", "goals": 1, "xg": 1.3, "shots": 6, "diff": -0.3}, {"player": "Carlos Henrique Casimiro", "team": "Manchester United", "goals": 1, "xg": 2.16, "shots": 32, "diff": -1.16}, {"player": "Oluwatosin Adarabioyo", "team": "Chelsea", "goals": 1, "xg": 1.38, "shots": 13, "diff": -0.38}, {"player": "Onyinye Wilfred Ndidi", "team": "Leicester City", "goals": 1, "xg": 2.89, "shots": 24, "diff": -1.89}, {"player": "Taylor Harwood-Bellis", "team": "Southampton", "goals": 1, "xg": 2.05, "shots": 20, "diff": -1.05}, {"player": "Carlos Soler Barragán", "team": "West Ham United", "goals": 1, "xg": 1.69, "shots": 25, "diff": -0.69}, {"player": "Myles Anthony Lewis-Skelly", "team": "Arsenal", "goals": 1, "xg": 0.16, "shots": 3, "diff": 0.84}, {"player": "Chris Richards", "team": "Crystal Palace", "goals": 1, "xg": 1.35, "shots": 12, "diff": -0.35}, {"player": "James Ward-Prowse", "team": "West Ham United", "goals": 1, "xg": 1.16, "shots": 12, "diff": -0.16}, {"player": "Moisés Isaac Caicedo Corozo", "team": "Chelsea", "goals": 1, "xg": 0.79, "shots": 20, "diff": 0.21}, {"player": "Jens-Lys Michel Cajuste", "team": "Ipswich Town", "goals": 1, "xg": 0.73, "shots": 12, "diff": 0.27}, {"player": "Neco Williams", "team": "Nottingham Forest", "goals": 1, "xg": 1.85, "shots": 37, "diff": -0.85}, {"player": "Jan Paul van Hecke", "team": "Brighton & Hove Albion", "goals": 1, "xg": 1.31, "shots": 17, "diff": -0.31}, {"player": "Jannik Vestergaard", "team": "Leicester City", "goals": 1, "xg": 1.16, "shots": 4, "diff": -0.16}, {"player": "Jarell Quansah", "team": "Liverpool", "goals": 1, "xg": 1.12, "shots": 2, "diff": -0.12}, {"player": "Taiwo Michael Awoniyi", "team": "Nottingham Forest", "goals": 1, "xg": 1.97, "shots": 10, "diff": -0.97}, {"player": "Sávio Moreira de Oliveira", "team": "Manchester City", "goals": 1, "xg": 4.5, "shots": 55, "diff": -3.5}, {"player": "Conor Coady", "team": "Leicester City", "goals": 1, "xg": 0.43, "shots": 2, "diff": 0.57}, {"player": "Conor Chaplin", "team": "Ipswich Town", "goals": 1, "xg": 1.15, "shots": 16, "diff": -0.15}, {"player": "Christian Dannemann Eriksen", "team": "Manchester United", "goals": 1, "xg": 1.33, "shots": 15, "diff": -0.33}, {"player": "Romain Esse", "team": "Crystal Palace", "goals": 1, "xg": 0.47, "shots": 1, "diff": 0.53}, {"player": "Ross Stewart", "team": "Southampton", "goals": 1, "xg": 1.0, "shots": 9, "diff": 0.0}, {"player": "Rúben Santos Gato Alves Dias", "team": "Manchester City", "goals": 1, "xg": 2.38, "shots": 22, "diff": -1.38}, {"player": "Jacob Greaves", "team": "Ipswich Town", "goals": 1, "xg": 1.26, "shots": 10, "diff": -0.26}, {"player": "Jack Taylor", "team": "Ipswich Town", "goals": 1, "xg": 0.66, "shots": 19, "diff": 0.34}, {"player": "Jack Stephens", "team": "Southampton", "goals": 1, "xg": 0.47, "shots": 4, "diff": 0.53}, {"player": "Jack Harrison", "team": "Everton", "goals": 1, "xg": 3.1, "shots": 29, "diff": -2.1}, {"player": "Jack Grealish", "team": "Manchester City", "goals": 1, "xg": 1.02, "shots": 15, "diff": -0.02}, {"player": "James Tarkowski", "team": "Everton", "goals": 1, "xg": 1.52, "shots": 15, "diff": -0.52}, {"player": "Ibrahima Konaté", "team": "Liverpool", "goals": 1, "xg": 1.88, "shots": 19, "diff": -0.88}, {"player": "Issa Diop", "team": "Fulham", "goals": 1, "xg": 1.42, "shots": 6, "diff": -0.42}, {"player": "João Félix Sequeira", "team": "Chelsea", "goals": 1, "xg": 2.2, "shots": 20, "diff": -1.2}, {"player": "Michail Antonio", "team": "West Ham United", "goals": 1, "xg": 2.28, "shots": 19, "diff": -1.28}, {"player": "Justin Devenny", "team": "Crystal Palace", "goals": 1, "xg": 0.75, "shots": 10, "diff": 0.25}, {"player": "John McGinn", "team": "Aston Villa", "goals": 1, "xg": 2.63, "shots": 31, "diff": -1.63}, {"player": "Joachim Andersen", "team": "Fulham", "goals": 1, "xg": 2.28, "shots": 21, "diff": -1.28}, {"player": "Mason Mount", "team": "Manchester United", "goals": 1, "xg": 2.45, "shots": 20, "diff": -1.45}, {"player": "Matheus França de Oliveira", "team": "Crystal Palace", "goals": 1, "xg": 0.3, "shots": 5, "diff": 0.7}, {"player": "Matheus Luiz Nunes", "team": "Manchester City", "goals": 1, "xg": 0.94, "shots": 9, "diff": 0.06}, {"player": "Kamaldeen Sulemana", "team": "Southampton", "goals": 1, "xg": 1.54, "shots": 29, "diff": -0.54}, {"player": "Keane Lewis-Potter", "team": "Brentford", "goals": 1, "xg": 2.69, "shots": 28, "diff": -1.69}, {"player": "Kasey McAteer", "team": "Leicester City", "goals": 1, "xg": 1.12, "shots": 14, "diff": -0.12}, {"player": "Kieran Tierney", "team": "Arsenal", "goals": 1, "xg": 0.39, "shots": 2, "diff": 0.61}, {"player": "Mats Wieffer", "team": "Brighton & Hove Albion", "goals": 1, "xg": 0.67, "shots": 9, "diff": 0.33}, {"player": "Maxence Lacroix", "team": "Crystal Palace", "goals": 1, "xg": 2.86, "shots": 30, "diff": -1.86}, {"player": "Memeh Caleb Okoli", "team": "Leicester City", "goals": 1, "xg": 0.67, "shots": 4, "diff": 0.33}, {"player": "Matty Cash", "team": "Aston Villa", "goals": 1, "xg": 0.55, "shots": 13, "diff": 0.45}, {"player": "Brajan Gruda", "team": "Brighton & Hove Albion", "goals": 1, "xg": 1.11, "shots": 11, "diff": -0.11}, {"player": "Calvin Bassey Ughelumba", "team": "Fulham", "goals": 1, "xg": 1.1, "shots": 14, "diff": -0.1}, {"player": "Jurriën David Norman Timber", "team": "Arsenal", "goals": 1, "xg": 1.45, "shots": 15, "diff": -0.45}, {"player": "Mario Lemina", "team": "Wolverhampton Wanderers", "goals": 1, "xg": 1.45, "shots": 18, "diff": -0.45}, {"player": "Alphonse Areola", "team": "West Ham United", "goals": 1, "xg": 1.0, "shots": 1, "diff": 0.0}, {"player": "Axel Disasi", "team": "Chelsea", "goals": 1, "xg": 0.41, "shots": 2, "diff": 0.59}, {"player": "Axel Tuanzebe", "team": "Ipswich Town", "goals": 1, "xg": 1.3, "shots": 5, "diff": -0.3}, {"player": "Ben Chilwell", "team": "Crystal Palace", "goals": 1, "xg": 0.21, "shots": 5, "diff": 0.79}, {"player": "Benjamin Johnson", "team": "Ipswich Town", "goals": 1, "xg": 0.83, "shots": 7, "diff": 0.17}, {"player": "Bobby Armani De Cordova-Reid", "team": "Leicester City", "goals": 1, "xg": 1.01, "shots": 7, "diff": -0.01}, {"player": "Boubacar Kamara", "team": "Aston Villa", "goals": 1, "xg": 0.61, "shots": 10, "diff": 0.39}, {"player": "Ashley Young", "team": "Everton", "goals": 1, "xg": 0.24, "shots": 6, "diff": 0.76}, {"player": "Lewis Miley", "team": "Newcastle United", "goals": 1, "xg": 0.27, "shots": 3, "diff": 0.73}, {"player": "Lewis Cook", "team": "AFC Bournemouth", "goals": 1, "xg": 0.99, "shots": 14, "diff": 0.01}, {"player": "Lewis Dunk", "team": "Brighton & Hove Albion", "goals": 1, "xg": 2.01, "shots": 13, "diff": -1.01}, {"player": "Lesley Chimuanya Ugochukwu", "team": "Southampton", "goals": 1, "xg": 0.8, "shots": 10, "diff": 0.2}, {"player": "Leon Bailey Butler", "team": "Aston Villa", "goals": 1, "xg": 1.7, "shots": 28, "diff": -0.7}, {"player": "Luke Shaw", "team": "Manchester United", "goals": 1, "xg": 1.03, "shots": 2, "diff": -0.03}, {"player": "Leif Davis", "team": "Ipswich Town", "goals": 1, "xg": 0.78, "shots": 16, "diff": 0.22}, {"player": "Luis Fernando Sinisterra Lucumí", "team": "AFC Bournemouth", "goals": 1, "xg": 1.32, "shots": 13, "diff": -0.32}, {"player": "Abdukodir Khusanov", "team": "Manchester City", "goals": 1, "xg": 1.02, "shots": 2, "diff": -0.02}, {"player": "Abdul Fatawu Issahaku", "team": "Leicester City", "goals": 0, "xg": 0.43, "shots": 13, "diff": -0.43}, {"player": "Adam David Lallana", "team": "Southampton", "goals": 0, "xg": 0.14, "shots": 3, "diff": -0.14}, {"player": "Adam Smith", "team": "AFC Bournemouth", "goals": 0, "xg": 0.31, "shots": 3, "diff": -0.31}, {"player": "Adam Webster", "team": "Brighton & Hove Albion", "goals": 0, "xg": 0.32, "shots": 5, "diff": -0.32}, {"player": "Adam Wharton", "team": "Crystal Palace", "goals": 0, "xg": 0.44, "shots": 13, "diff": -0.44}, {"player": "Albert Grønbæk Erlykke", "team": "Southampton", "goals": 0, "xg": 0.09, "shots": 2, "diff": -0.09}, {"player": "Alejandro Moreno Lopera", "team": "Nottingham Forest", "goals": 0, "xg": 0.24, "shots": 6, "diff": -0.24}, {"player": "Alex Scott", "team": "AFC Bournemouth", "goals": 0, "xg": 0.78, "shots": 15, "diff": -0.78}, {"player": "Ali Al-Hamadi", "team": "Ipswich Town", "goals": 0, "xg": 0.33, "shots": 4, "diff": -0.33}, {"player": "Willian Borges da Silva", "team": "Fulham", "goals": 0, "xg": 0.3, "shots": 7, "diff": -0.3}, {"player": "Willy Boly", "team": "Nottingham Forest", "goals": 0, "xg": 0.07, "shots": 1, "diff": -0.07}, {"player": "Woyo Coulibaly", "team": "Leicester City", "goals": 0, "xg": 0.03, "shots": 2, "diff": -0.03}, {"player": "Yerson Mosquera Valdelamar", "team": "Wolverhampton Wanderers", "goals": 0, "xg": 0.24, "shots": 2, "diff": -0.24}, {"player": "Youssef Ramalho Chermiti", "team": "Everton", "goals": 0, "xg": 0.12, "shots": 3, "diff": -0.12}, {"player": "Yunus Emre Konak", "team": "Brentford", "goals": 0, "xg": 0.11, "shots": 1, "diff": -0.11}, {"player": "Lewis Orford", "team": "West Ham United", "goals": 0, "xg": 0.05, "shots": 1, "diff": -0.05}, {"player": "Lloyd Kelly", "team": "Newcastle United", "goals": 0, "xg": 0.37, "shots": 3, "diff": -0.37}, {"player": "Lucas Bergvall", "team": "Tottenham Hotspur", "goals": 0, "xg": 0.78, "shots": 12, "diff": -0.78}, {"player": "Lucas Digne", "team": "Aston Villa", "goals": 0, "xg": 0.61, "shots": 13, "diff": -0.61}, {"player": "Luis Guilherme Lira dos Santos", "team": "West Ham United", "goals": 0, "xg": 0.4, "shots": 4, "diff": -0.4}, {"player": "Luke Thomas", "team": "Leicester City", "goals": 0, "xg": 0.4, "shots": 5, "diff": -0.4}, {"player": "Luke Woolfenden", "team": "Ipswich Town", "goals": 0, "xg": 0.09, "shots": 1, "diff": -0.09}, {"player": "Mads Roerslev", "team": "Brentford", "goals": 0, "xg": 0.2, "shots": 5, "diff": -0.2}, {"player": "Malo Gusto", "team": "Chelsea", "goals": 0, "xg": 1.51, "shots": 23, "diff": -1.51}, {"player": "Manuel Obafemi Akanji", "team": "Manchester City", "goals": 0, "xg": 1.45, "shots": 15, "diff": -1.45}, {"player": "Konstantinos Tsimikas", "team": "Liverpool", "goals": 0, "xg": 0.33, "shots": 4, "diff": -0.33}, {"player": "Kristoffer Vassbakk Ajer", "team": "Brentford", "goals": 0, "xg": 1.0, "shots": 9, "diff": -1.0}, {"player": "Kyle Walker", "team": "Manchester City", "goals": 0, "xg": 0.16, "shots": 5, "diff": -0.16}, {"player": "Kyle Walker-Peters", "team": "Southampton", "goals": 0, "xg": 0.94, "shots": 20, "diff": -0.94}, {"player": "Lamar Bogarde", "team": "Aston Villa", "goals": 0, "xg": 0.07, "shots": 1, "diff": -0.07}, {"player": "Leny Yoro", "team": "Manchester United", "goals": 0, "xg": 0.87, "shots": 5, "diff": -0.87}, {"player": "Lewis Hall", "team": "Newcastle United", "goals": 0, "xg": 0.4, "shots": 12, "diff": -0.4}, {"player": "Marcos Senesi", "team": "AFC Bournemouth", "goals": 0, "xg": 0.8, "shots": 3, "diff": -0.8}, {"player": "Kalvin Phillips", "team": "Ipswich Town", "goals": 0, "xg": 0.41, "shots": 11, "diff": -0.41}, {"player": "Kenny Tete", "team": "Fulham", "goals": 0, "xg": 1.5, "shots": 24, "diff": -1.5}, {"player": "Kepa Arrizabalaga Revuelta", "team": "AFC Bournemouth", "goals": 0, "xg": 0.08, "shots": 1, "diff": -0.08}, {"player": "Kevin Danso", "team": "Tottenham Hotspur", "goals": 0, "xg": 0.62, "shots": 7, "diff": -0.62}, {"player": "Kieran Trippier", "team": "Newcastle United", "goals": 0, "xg": 0.13, "shots": 4, "diff": -0.13}, {"player": "Kiernan Dewsbury-Hall", "team": "Chelsea", "goals": 0, "xg": 0.16, "shots": 1, "diff": -0.16}, {"player": "Kobbie Mainoo", "team": "Manchester United", "goals": 0, "xg": 0.84, "shots": 15, "diff": -0.84}, {"player": "Konstantinos Mavropanos", "team": "West Ham United", "goals": 0, "xg": 1.42, "shots": 18, "diff": -1.42}, {"player": "Mathias Jensen", "team": "Brentford", "goals": 0, "xg": 0.34, "shots": 6, "diff": -0.34}, {"player": "Maximilian William Kilman", "team": "West Ham United", "goals": 0, "xg": 1.36, "shots": 13, "diff": -1.36}, {"player": "Michael Kayode", "team": "Brentford", "goals": 0, "xg": 0.1, "shots": 2, "diff": -0.1}, {"player": "Micky van de Ven", "team": "Tottenham Hotspur", "goals": 0, "xg": 0.6, "shots": 6, "diff": -0.6}, {"player": "Miguel Ángel Almirón Rejala", "team": "Newcastle United", "goals": 0, "xg": 0.47, "shots": 6, "diff": -0.47}, {"player": "Joshua King", "team": "Fulham", "goals": 0, "xg": 0.33, "shots": 3, "diff": -0.33}, {"player": "Joshua Kofi Acheampong", "team": "Chelsea", "goals": 0, "xg": 0.16, "shots": 2, "diff": -0.16}, {"player": "José Diogo Dalot Teixeira", "team": "Manchester United", "goals": 0, "xg": 2.3, "shots": 25, "diff": -2.3}, {"player": "Joël Veltman", "team": "Brighton & Hove Albion", "goals": 0, "xg": 0.59, "shots": 6, "diff": -0.59}, {"player": "Julio César Enciso Espínola", "team": "Brighton & Hove Albion", "goals": 0, "xg": 1.08, "shots": 20, "diff": -1.08}, {"player": "Jeremy Monga", "team": "Leicester City", "goals": 0, "xg": 0.21, "shots": 3, "diff": -0.21}, {"player": "Jesper Lindstrøm", "team": "Everton", "goals": 0, "xg": 1.95, "shots": 28, "diff": -1.95}, {"player": "Joachim Andersen", "team": "Crystal Palace", "goals": 0, "xg": 0.05, "shots": 1, "diff": -0.05}, {"player": "Joe Gomez", "team": "Liverpool", "goals": 0, "xg": 0.2, "shots": 3, "diff": -0.2}, {"player": "Jonathan Grant Evans", "team": "Manchester United", "goals": 0, "xg": 0.14, "shots": 2, "diff": -0.14}, {"player": "Jordan Ayew", "team": "Crystal Palace", "goals": 0, "xg": 0.13, "shots": 1, "diff": -0.13}, {"player": "Jorge Cuenca Barreno", "team": "Fulham", "goals": 0, "xg": 0.04, "shots": 1, "diff": -0.04}, {"player": "Jorge Luiz Frello Filho", "team": "Arsenal", "goals": 0, "xg": 0.06, "shots": 2, "diff": -0.06}, {"player": "Joseph Willock", "team": "Newcastle United", "goals": 0, "xg": 1.72, "shots": 18, "diff": -1.72}, {"player": "Mikey Moore", "team": "Tottenham Hotspur", "goals": 0, "xg": 0.17, "shots": 3, "diff": -0.17}, {"player": "Mykhailo Mudryk", "team": "Chelsea", "goals": 0, "xg": 0.09, "shots": 1, "diff": -0.09}, {"player": "Nathan Aké", "team": "Manchester City", "goals": 0, "xg": 0.3, "shots": 3, "diff": -0.3}, {"player": "Nathan Butler-Oyedeji", "team": "Arsenal", "goals": 0, "xg": 0.06, "shots": 1, "diff": -0.06}, {"player": "Jarrad Branthwaite", "team": "Everton", "goals": 0, "xg": 1.03, "shots": 10, "diff": -1.03}, {"player": "Jay Robinson", "team": "Southampton", "goals": 0, "xg": 0.07, "shots": 1, "diff": -0.07}, {"player": "Jean-Clair Todibo", "team": "West Ham United", "goals": 0, "xg": 0.35, "shots": 5, "diff": -0.35}, {"player": "Jefferson Andrés Lerma Solís", "team": "Crystal Palace", "goals": 0, "xg": 1.13, "shots": 26, "diff": -1.13}, {"player": "Jeffrey Schlupp", "team": "Crystal Palace", "goals": 0, "xg": 0.19, "shots": 4, "diff": -0.19}, {"player": "Nathan Patterson", "team": "Everton", "goals": 0, "xg": 0.05, "shots": 1, "diff": -0.05}, {"player": "Nathan Wood-Gordon", "team": "Southampton", "goals": 0, "xg": 0.24, "shots": 2, "diff": -0.24}, {"player": "Nathaniel Edwin Clyne", "team": "Crystal Palace", "goals": 0, "xg": 0.03, "shots": 2, "diff": -0.03}, {"player": "Nicolás Martín Domínguez", "team": "Nottingham Forest", "goals": 0, "xg": 1.83, "shots": 21, "diff": -1.83}, {"player": "Noussair Mazraoui", "team": "Manchester United", "goals": 0, "xg": 0.75, "shots": 13, "diff": -0.75}, {"player": "Nélson Cabral Semedo", "team": "Wolverhampton Wanderers", "goals": 0, "xg": 0.81, "shots": 18, "diff": -0.81}, {"player": "Odsonne Édouard", "team": "Crystal Palace", "goals": 0, "xg": 0.42, "shots": 5, "diff": -0.42}, {"player": "Oleksandr Zinchenko", "team": "Arsenal", "goals": 0, "xg": 0.53, "shots": 10, "diff": -0.53}, {"player": "Oliver Scarles", "team": "West Ham United", "goals": 0, "xg": 0.11, "shots": 3, "diff": -0.11}, {"player": "Jaden Philogene-Bidace", "team": "Aston Villa", "goals": 0, "xg": 0.46, "shots": 7, "diff": -0.46}, {"player": "James Bree", "team": "Southampton", "goals": 0, "xg": 0.14, "shots": 4, "diff": -0.14}, {"player": "James Garner", "team": "Everton", "goals": 0, "xg": 0.62, "shots": 12, "diff": -0.62}, {"player": "James Hill", "team": "AFC Bournemouth", "goals": 0, "xg": 0.52, "shots": 7, "diff": -0.52}, {"player": "James Philip Milner", "team": "Brighton & Hove Albion", "goals": 0, "xg": 0.22, "shots": 2, "diff": -0.22}, {"player": "James Ward-Prowse", "team": "Nottingham Forest", "goals": 0, "xg": 0.07, "shots": 2, "diff": -0.07}, {"player": "Idrissa Gana Gueye", "team": "Everton", "goals": 0, "xg": 1.04, "shots": 27, "diff": -1.04}, {"player": "Igor Julio dos Santos de Paulo", "team": "Brighton & Hove Albion", "goals": 0, "xg": 0.09, "shots": 1, "diff": -0.09}, {"player": "Igor Thiago Nascimento Rodrigues", "team": "Brentford", "goals": 0, "xg": 0.15, "shots": 2, "diff": -0.15}, {"player": "Illia Zabarnyi", "team": "AFC Bournemouth", "goals": 0, "xg": 1.08, "shots": 12, "diff": -1.08}, {"player": "Jack Clarke", "team": "Ipswich Town", "goals": 0, "xg": 1.3, "shots": 18, "diff": -1.3}, {"player": "Oliver Skipp", "team": "Leicester City", "goals": 0, "xg": 0.29, "shots": 5, "diff": -0.29}, {"player": "Patrick Chinazaekpere Dorgu", "team": "Manchester United", "goals": 0, "xg": 0.45, "shots": 10, "diff": -0.45}, {"player": "Pau Francisco Torres", "team": "Aston Villa", "goals": 0, "xg": 0.53, "shots": 8, "diff": -0.53}, {"player": "Pedro Henrique Cardoso de Lima", "team": "Wolverhampton Wanderers", "goals": 0, "xg": 0.06, "shots": 1, "diff": -0.06}, {"player": "Guido Rodríguez", "team": "West Ham United", "goals": 0, "xg": 0.19, "shots": 8, "diff": -0.19}, {"player": "Harrison Armstrong", "team": "Everton", "goals": 0, "xg": 0.1, "shots": 1, "diff": -0.1}, {"player": "Harrison Reed", "team": "Fulham", "goals": 0, "xg": 0.15, "shots": 3, "diff": -0.15}, {"player": "Harry Amass", "team": "Manchester United", "goals": 0, "xg": 0.11, "shots": 3, "diff": -0.11}, {"player": "Harry Toffolo", "team": "Nottingham Forest", "goals": 0, "xg": 0.02, "shots": 1, "diff": -0.02}, {"player": "Harry Winks", "team": "Leicester City", "goals": 0, "xg": 0.28, "shots": 10, "diff": -0.28}, {"player": "Ibrahim Sangaré", "team": "Nottingham Forest", "goals": 0, "xg": 0.02, "shots": 1, "diff": -0.02}, {"player": "Evan Ferguson", "team": "West Ham United", "goals": 0, "xg": 0.98, "shots": 5, "diff": -0.98}, {"player": "Federico Chiesa", "team": "Liverpool", "goals": 0, "xg": 0.43, "shots": 5, "diff": -0.43}, {"player": "Felipe Rodrigues", "team": "Nottingham Forest", "goals": 0, "xg": 0.18, "shots": 2, "diff": -0.18}, {"player": "Gnaly Maxwell Cornet", "team": "Southampton", "goals": 0, "xg": 0.06, "shots": 1, "diff": -0.06}, {"player": "Philip Billing", "team": "AFC Bournemouth", "goals": 0, "xg": 0.38, "shots": 5, "diff": -0.38}, {"player": "Radu Drăgușin", "team": "Tottenham Hotspur", "goals": 0, "xg": 0.22, "shots": 5, "diff": -0.22}, {"player": "Raheem Sterling", "team": "Arsenal", "goals": 0, "xg": 0.99, "shots": 11, "diff": -0.99}, {"player": "Renato De Palma Veiga", "team": "Chelsea", "goals": 0, "xg": 0.2, "shots": 3, "diff": -0.2}, {"player": "Ricardo Domingos Barbosa Pereira", "team": "Leicester City", "goals": 0, "xg": 0.13, "shots": 2, "diff": -0.13}, {"player": "Edmond-Paris Maghoma", "team": "Brentford", "goals": 0, "xg": 0.04, "shots": 1, "diff": -0.04}, {"player": "Edson Omar Álvarez Velázquez", "team": "West Ham United", "goals": 0, "xg": 0.38, "shots": 12, "diff": -0.38}, {"player": "Ehor Yarmolyuk", "team": "Brentford", "goals": 0, "xg": 0.65, "shots": 9, "diff": -0.65}, {"player": "Emil Krafth", "team": "Newcastle United", "goals": 0, "xg": 0.05, "shots": 1, "diff": -0.05}, {"player": "Emiliano Buendía", "team": "Aston Villa", "goals": 0, "xg": 0.54, "shots": 6, "diff": -0.54}, {"player": "Dean Henderson", "team": "Crystal Palace", "goals": 0, "xg": 0.03, "shots": 1, "diff": -0.03}, {"player": "Diego Carlos Santos Silva", "team": "Aston Villa", "goals": 0, "xg": 0.76, "shots": 4, "diff": -0.76}, {"player": "Divin Mubama", "team": "Manchester City", "goals": 0, "xg": 0.03, "shots": 1, "diff": -0.03}, {"player": "Conor Townsend", "team": "Ipswich Town", "goals": 0, "xg": 0.03, "shots": 1, "diff": -0.03}, {"player": "Daichi Kamada", "team": "Crystal Palace", "goals": 0, "xg": 1.1, "shots": 20, "diff": -1.1}, {"player": "Dane Scarlett", "team": "Tottenham Hotspur", "goals": 0, "xg": 0.05, "shots": 1, "diff": -0.05}, {"player": "Daniel Castelo Podence", "team": "Wolverhampton Wanderers", "goals": 0, "xg": 0.03, "shots": 1, "diff": -0.03}, {"player": "Dara Joseph O'Shea", "team": "Ipswich Town", "goals": 0, "xg": 1.24, "shots": 22, "diff": -1.24}, {"player": "Roméo Lavia", "team": "Chelsea", "goals": 0, "xg": 0.17, "shots": 2, "diff": -0.17}, {"player": "Ryan Fraser", "team": "Southampton", "goals": 0, "xg": 0.02, "shots": 1, "diff": -0.02}, {"player": "Ryan Gravenberch", "team": "Liverpool", "goals": 0, "xg": 0.9, "shots": 20, "diff": -0.9}, {"player": "Ryan Manning", "team": "Southampton", "goals": 0, "xg": 0.3, "shots": 8, "diff": -0.3}, {"player": "Samuel Amo-Ameyaw", "team": "Southampton", "goals": 0, "xg": 0.04, "shots": 1, "diff": -0.04}, {"player": "Carlos Vinícius Alves Morais", "team": "Fulham", "goals": 0, "xg": 0.02, "shots": 1, "diff": -0.02}, {"player": "Cheick Oumar Doucoure", "team": "Crystal Palace", "goals": 0, "xg": 0.38, "shots": 7, "diff": -0.38}, {"player": "Chidozie Obi-Martin", "team": "Manchester United", "goals": 0, "xg": 0.86, "shots": 5, "diff": -0.86}, {"player": "Conor Bradley", "team": "Liverpool", "goals": 0, "xg": 0.81, "shots": 10, "diff": -0.81}, {"player": "Sander Berge", "team": "Fulham", "goals": 0, "xg": 0.43, "shots": 3, "diff": -0.43}, {"player": "Santiago Ignacio Bueno Sciutto", "team": "Wolverhampton Wanderers", "goals": 0, "xg": 0.62, "shots": 6, "diff": -0.62}, {"player": "Saša Lukić", "team": "Fulham", "goals": 0, "xg": 1.16, "shots": 18, "diff": -1.16}, {"player": "Scott McTominay", "team": "Manchester United", "goals": 0, "xg": 0.08, "shots": 1, "diff": -0.08}, {"player": "Sean Longstaff", "team": "Newcastle United", "goals": 0, "xg": 0.53, "shots": 6, "diff": -0.53}, {"player": "Sepp van den Berg", "team": "Brentford", "goals": 0, "xg": 1.67, "shots": 20, "diff": -1.67}, {"player": "Sergio Reguilón Rodríguez", "team": "Tottenham Hotspur", "goals": 0, "xg": 0.06, "shots": 2, "diff": -0.06}, {"player": "Shumaira Mheuka", "team": "Chelsea", "goals": 0, "xg": 0.07, "shots": 1, "diff": -0.07}, {"player": "Solomon March", "team": "Brighton & Hove Albion", "goals": 0, "xg": 0.06, "shots": 2, "diff": -0.06}, {"player": "Sven Botman", "team": "Newcastle United", "goals": 0, "xg": 0.43, "shots": 5, "diff": -0.43}, {"player": "Séamus Coleman", "team": "Everton", "goals": 0, "xg": 0.52, "shots": 1, "diff": -0.52}, {"player": "Boubakary Soumaré", "team": "Leicester City", "goals": 0, "xg": 0.29, "shots": 7, "diff": -0.29}, {"player": "Callum Wilson", "team": "Newcastle United", "goals": 0, "xg": 0.51, "shots": 6, "diff": -0.51}, {"player": "Cameron Burgess", "team": "Ipswich Town", "goals": 0, "xg": 1.03, "shots": 10, "diff": -1.03}, {"player": "Carlos Alcaraz", "team": "Southampton", "goals": 0, "xg": 0.06, "shots": 1, "diff": -0.06}, {"player": "Carlos Borges", "team": "Wolverhampton Wanderers", "goals": 0, "xg": 0.13, "shots": 2, "diff": -0.13}, {"player": "Takehiro Tomiyasu", "team": "Arsenal", "goals": 0, "xg": 0.27, "shots": 1, "diff": -0.27}, {"player": "Thomas Doyle", "team": "Wolverhampton Wanderers", "goals": 0, "xg": 0.53, "shots": 9, "diff": -0.53}, {"player": "Tim Iroegbunam", "team": "Everton", "goals": 0, "xg": 0.26, "shots": 5, "diff": -0.26}, {"player": "Timo Werner", "team": "Tottenham Hotspur", "goals": 0, "xg": 0.63, "shots": 8, "diff": -0.63}, {"player": "Timothy Castagne", "team": "Fulham", "goals": 0, "xg": 0.53, "shots": 8, "diff": -0.53}, {"player": "Tobias Christopher Collyer", "team": "Manchester United", "goals": 0, "xg": 0.15, "shots": 1, "diff": -0.15}, {"player": "Tote António Gomes", "team": "Wolverhampton Wanderers", "goals": 0, "xg": 0.9, "shots": 7, "diff": -0.9}, {"player": "Trevoh Chalobah", "team": "Chelsea", "goals": 0, "xg": 0.62, "shots": 7, "diff": -0.62}, {"player": "Asher Agbinone", "team": "Crystal Palace", "goals": 0, "xg": 0.03, "shots": 1, "diff": -0.03}, {"player": "Axel Disasi", "team": "Aston Villa", "goals": 0, "xg": 0.08, "shots": 2, "diff": -0.08}, {"player": "Ayden Heaven", "team": "Manchester United", "goals": 0, "xg": 0.2, "shots": 2, "diff": -0.2}, {"player": "Ben Brereton Díaz", "team": "Southampton", "goals": 0, "xg": 0.63, "shots": 11, "diff": -0.63}, {"player": "Ben Davies", "team": "Tottenham Hotspur", "goals": 0, "xg": 0.35, "shots": 5, "diff": -0.35}, {"player": "Ben White", "team": "Arsenal", "goals": 0, "xg": 0.4, "shots": 9, "diff": -0.4}, {"player": "Billy Gilmour", "team": "Brighton & Hove Albion", "goals": 0, "xg": 0.07, "shots": 1, "diff": -0.07}, {"player": "Andrew Irving", "team": "West Ham United", "goals": 0, "xg": 0.11, "shots": 4, "diff": -0.11}, {"player": "André Trindade da Costa Neto", "team": "Wolverhampton Wanderers", "goals": 0, "xg": 0.3, "shots": 10, "diff": -0.3}, {"player": "Andrés García Robledo", "team": "Aston Villa", "goals": 0, "xg": 0.05, "shots": 2, "diff": -0.05}, {"player": "Antonee Robinson", "team": "Fulham", "goals": 0, "xg": 0.8, "shots": 16, "diff": -0.8}, {"player": "Antony Matheus dos Santos", "team": "Manchester United", "goals": 0, "xg": 1.14, "shots": 6, "diff": -1.14}, {"player": "Armando Broja", "team": "Everton", "goals": 0, "xg": 0.15, "shots": 4, "diff": -0.15}, {"player": "Armel Bella-Kotchap", "team": "Southampton", "goals": 0, "xg": 0.08, "shots": 1, "diff": -0.08}, {"player": "Tyler Adams", "team": "AFC Bournemouth", "goals": 0, "xg": 1.44, "shots": 9, "diff": -1.44}, {"player": "Tyrick Mitchell", "team": "Crystal Palace", "goals": 0, "xg": 1.21, "shots": 13, "diff": -1.21}, {"player": "Tyrone Mings", "team": "Aston Villa", "goals": 0, "xg": 0.77, "shots": 9, "diff": -0.77}, {"player": "Valentino Livramento", "team": "Newcastle United", "goals": 0, "xg": 0.28, "shots": 6, "diff": -0.28}, {"player": "Welington Damascena Santos", "team": "Southampton", "goals": 0, "xg": 0.05, "shots": 3, "diff": -0.05}, {"player": "Wes Burns", "team": "Ipswich Town", "goals": 0, "xg": 0.35, "shots": 7, "diff": -0.35}, {"player": "Wesley Fofana", "team": "Chelsea", "goals": 0, "xg": 0.35, "shots": 3, "diff": -0.35}, {"player": "Will Hughes", "team": "Crystal Palace", "goals": 0, "xg": 1.12, "shots": 22, "diff": -1.12}, {"player": "Aaron Cresswell", "team": "West Ham United", "goals": 0, "xg": 0.17, "shots": 5, "diff": -0.17}];
+const TEAM_COLORS = {"Arsenal": "#EF0107", "Aston Villa": "#95BFE5", "AFC Bournemouth": "#DA291C", "Brentford": "#FFD700", "Brighton & Hove Albion": "#0057B8", "Chelsea": "#034694", "Crystal Palace": "#C4122E", "Everton": "#003399", "Fulham": "#CBBC8B", "Ipswich Town": "#4287C8", "Leicester City": "#003090", "Liverpool": "#C8102E", "Manchester City": "#6CABDD", "Manchester United": "#F5A623", "Newcastle United": "#AAAAAA", "Nottingham Forest": "#FF6B35", "Southampton": "#D71920", "Tottenham Hotspur": "#8EB4E3", "West Ham United": "#7A263A", "Wolverhampton Wanderers": "#FDB913"};
+const ALL_TEAMS   = ["AFC Bournemouth", "Arsenal", "Aston Villa", "Brentford", "Brighton & Hove Albion", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Ipswich Town", "Leicester City", "Liverpool", "Manchester City", "Manchester United", "Newcastle United", "Nottingham Forest", "Southampton", "Tottenham Hotspur", "West Ham United", "Wolverhampton Wanderers"];
+const MAX_VAL     = 31.0;
+
+let isDark = true;
+
+// ── Populate team dropdown ─────────────────────────────────────────────────────
+function populateTeams() {
+  const sel = document.getElementById('sel-team');
+  ALL_TEAMS.forEach(t => {
+    const o = document.createElement('option');
+    o.value = o.textContent = t;
+    sel.appendChild(o);
+  });
+}
+
+// ── Filter + sort data based on controls ──────────────────────────────────────
+function getFiltered() {
+  const team     = document.getElementById('sel-team').value;
+  const minShots = parseInt(document.getElementById('sel-min-shots').value);
+  const topN     = parseInt(document.getElementById('sel-top-n').value);
+
+  let data = ALL_PLAYERS.filter(p =>
+    (team === 'all' || p.team === team) && p.shots >= minShots
+  );
+
+  // Sort by goals desc, then xg desc
+  data.sort((a,b) => b.goals - a.goals || b.xg - a.xg);
+
+  if (topN > 0) data = data.slice(0, topN);
+  return data;
+}
+
+// ── Render scatter plot ────────────────────────────────────────────────────────
+function render() {
+  const data    = getFiltered();
+  const th      = getTheme();
+  const FONT    = 'DM Sans, sans-serif';
+
+  // Split into over/under-performers
+  const over  = data.filter(p => p.goals >= p.xg);
+  const under = data.filter(p => p.goals <  p.xg);
+
+  function makeTrace(players, label, color) {
+    return {
+      x: players.map(p => p.xg),
+      y: players.map(p => p.goals),
+      mode: 'markers',
+      type: 'scatter',
+      name: label,
+      marker: {
+        color: players.map(p => TEAM_COLORS[p.team] || color),
+        size:  players.map(p => Math.max(8, Math.min(32, p.shots / 8))),
+        opacity: 0.82,
+        line: { color: 'rgba(255,255,255,0.5)', width: 1.2 },
+      },
+      text: players.map(p =>
+        `<b style="color:${TEAM_COLORS[p.team] || '#fff'}">${p.player}</b><br>` +
+        `<span style="color:${th.text}">${p.team}</span><br>` +
+        `Goals: <b>${p.goals}</b> &nbsp;·&nbsp; xG: <b>${p.xg.toFixed(2)}</b><br>` +
+        `+/- xG: <b style="color:${p.diff>=0?'#00C853':'#FF5252'}">${p.diff>=0?'+':''}${p.diff.toFixed(2)}</b><br>` +
+        `Shots: ${p.shots} &nbsp;·&nbsp; Conv: ${p.shots?((p.goals/p.shots)*100).toFixed(1):0}%`
+      ),
+      hovertemplate: '%{text}<extra></extra>',
+    };
+  }
+
+  const trOver  = makeTrace(over,  'Overperformer',  '#00C853');
+  const trUnder = makeTrace(under, 'Underperformer', '#FF5252');
+
+  // Goals = xG diagonal reference line
+  const diagMax = MAX_VAL;
+  const trDiag = {
+    x: [0, diagMax], y: [0, diagMax],
+    mode: 'lines', type: 'scatter', name: 'Goals = xG',
+    line: { color: 'rgba(255,255,255,0.20)', width: 1.5, dash: 'dash' },
+    hoverinfo: 'skip', showlegend: true,
+  };
+
+  // Player name annotations for top scorers
+  const top10 = [...data].sort((a,b) => b.goals - a.goals).slice(0, 10);
+  const annotations = top10.map(p => ({
+    x: p.xg, y: p.goals,
+    text: p.player.split(' ').at(-1),   // last name only
+    showarrow: false,
+    xanchor: 'left', yanchor: 'bottom',
+    xshift: 8, yshift: 4,
+    font: { size: 10, color: TEAM_COLORS[p.team] || '#fff', family: FONT },
+  }));
+
+  const layout = {
+    paper_bgcolor: th.panel,
+    plot_bgcolor:  th.panel,
+    margin: { l:60, r:40, t:24, b:60 },
+    font:   { family: FONT, color: th.text, size: 11 },
+    xaxis: {
+      title: { text: 'EXPECTED GOALS (xG)', font: { size: 11, color: th.text } },
+      range: [0, diagMax],
+      gridcolor: th.grid, showgrid: true,
+      zeroline: false,
+      linecolor: th.border, linewidth: 1, showline: true,
+      tickfont: { color: th.text, size: 10 },
+    },
+    yaxis: {
+      title: { text: 'ACTUAL GOALS', font: { size: 11, color: th.text } },
+      range: [0, diagMax],
+      gridcolor: th.grid, showgrid: true,
+      zeroline: false,
+      linecolor: th.border, linewidth: 1, showline: true,
+      tickfont: { color: th.text, size: 10 },
+    },
+    // Shaded regions: above diagonal = overperform, below = underperform
+    shapes: [
+      {
+        type: 'rect', xref: 'paper', yref: 'paper',
+        x0: 0, x1: 1, y0: 0.5, y1: 1,
+        fillcolor: 'rgba(0,200,83,0.04)', line_width: 0,
+      },
+      {
+        type: 'rect', xref: 'paper', yref: 'paper',
+        x0: 0, x1: 1, y0: 0, y1: 0.5,
+        fillcolor: 'rgba(255,82,82,0.04)', line_width: 0,
+      },
+    ],
+    annotations: [
+      ...annotations,
+      // Region labels
+      { x: diagMax*0.08, y: diagMax*0.92, xref:'x', yref:'y',
+         text: 'OVERPERFORMING', showarrow: false,
+         font: { size: 9, color: 'rgba(0,200,83,0.5)', family: FONT },
+         xanchor: 'left' },
+      { x: diagMax*0.92, y: diagMax*0.08, xref:'x', yref:'y',
+         text: 'UNDERPERFORMING', showarrow: false,
+         font: { size: 9, color: 'rgba(255,82,82,0.5)', family: FONT },
+         xanchor: 'right' },
+    ],
+    legend: {
+      bgcolor: th.legend, bordercolor: th.border, borderwidth: 1,
+      font: { size: 10, family: FONT, color: th.text },
+      x: 0.01, y: 0.99, xanchor: 'left', yanchor: 'top',
+    },
+    hoverlabel: {
+      bgcolor: th.hover, bordercolor: '#016AF2',
+      font: { family: FONT, size: 12, color: isDark ? '#FFF' : '#00249C' },
+      align: 'left',
+    },
+  };
+
+  Plotly.react('chart', [trDiag, trOver, trUnder], layout,
+    { responsive: true, displayModeBar: false });
+
+  // Update table
+  renderTable(data);
+}
+
+// ── Render sortable stats table ────────────────────────────────────────────────
+function renderTable(data) {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  data.forEach((p, i) => {
+    const conv = p.shots ? ((p.goals / p.shots) * 100).toFixed(1) : '0.0';
+    const diffClass = p.diff > 0 ? 'diff-pos' : p.diff < 0 ? 'diff-neg' : 'diff-neu';
+    const diffStr   = (p.diff >= 0 ? '+' : '') + p.diff.toFixed(2);
+    const teamColor = TEAM_COLORS[p.team] || '#6a85b5';
+    tbody.innerHTML += `
+      <tr>
+        <td style="color:var(--text-sec)">${i+1}</td>
+        <td><b style="color:${teamColor}">${p.player}</b></td>
+        <td style="color:var(--text-sec)">${p.team}</td>
+        <td><b>${p.goals}</b></td>
+        <td>${p.xg.toFixed(2)}</td>
+        <td class="${diffClass}">${diffStr}</td>
+        <td>${p.shots}</td>
+        <td>${conv}%</td>
+      </tr>`;
+  });
+}
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+const DARK_TH  = { panel:'#06122e', text:'#6a85b5',
+                    grid:'rgba(1,106,242,0.08)', border:'rgba(1,106,242,0.25)',
+                    hover:'#071530', legend:'rgba(2,10,30,0.80)' };
+const LIGHT_TH = { panel:'#F0F5FF', text:'#5070A0',
+                    grid:'rgba(0,36,156,0.08)', border:'rgba(0,36,156,0.22)',
+                    hover:'#E8EFFF', legend:'rgba(240,245,255,0.92)' };
+function getTheme() { return isDark ? DARK_TH : LIGHT_TH; }
+
+function toggleTheme() {
+  isDark = !isDark;
+  document.body.classList.toggle('light', !isDark);
+  document.getElementById('theme-btn').innerHTML =
+    isDark ? '&#9728; LIGHT MODE' : '&#9790; DARK MODE';
+  render();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+populateTeams();
+render();
+</script>
+</body>
+</html>
