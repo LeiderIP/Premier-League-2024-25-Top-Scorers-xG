@@ -214,13 +214,13 @@ function render() {
   const over  = data.filter(p => p.goals >= p.xg);
   const under = data.filter(p => p.goals <  p.xg);
 
-  function makeTrace(players, label, symbol) {
+  function makeTrace(players, symbol) {
     return {
       x: players.map(p => p.xg),
       y: players.map(p => p.goals),
       mode: 'markers',
       type: 'scatter',
-      name: label,
+      showlegend: false,          // actual data — hidden from legend
       marker: {
         color:   players.map(p => TEAM_COLORS[p.team] || '#aaa'),
         size:    players.map(p => Math.max(8, Math.min(32, p.shots / 8))),
@@ -242,8 +242,26 @@ function render() {
     };
   }
 
-  const trOver  = makeTrace(over,  'Overperformer  ●', 'circle');
-  const trUnder = makeTrace(under, 'Underperformer ✕', 'x');
+  const trOver  = makeTrace(over,  'circle');
+  const trUnder = makeTrace(under, 'x');
+
+  // ── Dummy traces for legend only — fixed green/red so legend is unambiguous ──
+  const trLegOver = {
+    x: [null], y: [null], mode: 'markers', type: 'scatter',
+    name: 'Overperformer  ●',
+    showlegend: true,
+    marker: { color: '#00C853', size: 10, symbol: 'circle',
+               line: { color: '#00C853', width: 1 } },
+    hoverinfo: 'skip',
+  };
+  const trLegUnder = {
+    x: [null], y: [null], mode: 'markers', type: 'scatter',
+    name: 'Underperformer  ✕',
+    showlegend: true,
+    marker: { color: '#FF5252', size: 10, symbol: 'x',
+               line: { color: '#FF5252', width: 2.5 } },
+    hoverinfo: 'skip',
+  };
 
   // Goals = xG diagonal reference line
   const diagMax = MAX_VAL;
@@ -258,7 +276,7 @@ function render() {
   const top10 = [...data].sort((a,b) => b.goals - a.goals).slice(0, 10);
   const annotations = top10.map(p => ({
     x: p.xg, y: p.goals,
-    text: p.player.split(' ').at(-1),   // last name only
+    text: p.player.split(' ').at(-1),
     showarrow: false,
     xanchor: 'left', yanchor: 'bottom',
     xshift: 8, yshift: 4,
@@ -286,7 +304,6 @@ function render() {
       linecolor: th.border, linewidth: 1, showline: true,
       tickfont: { color: th.text, size: 10 },
     },
-    // Shaded regions: above diagonal = overperform, below = underperform
     shapes: [
       {
         type: 'rect', xref: 'paper', yref: 'paper',
@@ -301,7 +318,6 @@ function render() {
     ],
     annotations: [
       ...annotations,
-      // Region labels
       { x: diagMax*0.08, y: diagMax*0.92, xref:'x', yref:'y',
          text: 'OVERPERFORMING', showarrow: false,
          font: { size: 9, color: 'rgba(0,200,83,0.5)', family: FONT },
@@ -314,7 +330,7 @@ function render() {
     legend: {
       bgcolor: th.legend, bordercolor: th.border, borderwidth: 1,
       font: { size: 10, family: FONT, color: th.text },
-      x: 0.01, y: 0.99, xanchor: 'left', yanchor: 'top',
+      x: 0.99, y: 0.99, xanchor: 'right', yanchor: 'top',  // ← upper right
     },
     hoverlabel: {
       bgcolor: th.hover, bordercolor: '#016AF2',
@@ -323,8 +339,9 @@ function render() {
     },
   };
 
-  Plotly.react('chart', [trDiag, trOver, trUnder], layout,
-    { responsive: true, displayModeBar: false });
+  Plotly.react('chart',
+    [trDiag, trLegOver, trLegUnder, trOver, trUnder],
+    layout, { responsive: true, displayModeBar: false });
 
   // Update table
   renderTable(data);
