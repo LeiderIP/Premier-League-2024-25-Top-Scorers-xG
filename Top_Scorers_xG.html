@@ -127,12 +127,18 @@ footer{margin:16px 0 24px;font-size:.68rem;color:var(--text-sec);
     <span>Goals = xG line</span>
   </div>
   <div class="legend-item">
-    <div class="leg-dot" style="background:#00C853"></div>
+    <svg width="16" height="16" style="flex-shrink:0">
+      <circle cx="8" cy="8" r="6" fill="rgba(255,255,255,0.5)" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
+    </svg>
     <span>Overperformer (Goals &gt; xG)</span>
   </div>
   <div class="legend-item">
-    <div class="leg-dot" style="background:#FF5252"></div>
+    <svg width="16" height="16" style="flex-shrink:0">
+      <line x1="3" y1="3" x2="13" y2="13" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round"/>
+      <line x1="13" y1="3" x2="3" y2="13" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round"/>
+    </svg>
     <span>Underperformer (Goals &lt; xG)</span>
+  </div>
   </div>
   <div class="legend-item">
     <span style="font-size:.72rem">Circle size = shots taken</span>
@@ -208,7 +214,7 @@ function render() {
   const over  = data.filter(p => p.goals >= p.xg);
   const under = data.filter(p => p.goals <  p.xg);
 
-  function makeTrace(players, label, color) {
+  function makeTrace(players, label, symbol) {
     return {
       x: players.map(p => p.xg),
       y: players.map(p => p.goals),
@@ -216,10 +222,14 @@ function render() {
       type: 'scatter',
       name: label,
       marker: {
-        color: players.map(p => TEAM_COLORS[p.team] || color),
-        size:  players.map(p => Math.max(8, Math.min(32, p.shots / 8))),
-        opacity: 0.82,
-        line: { color: 'rgba(255,255,255,0.5)', width: 1.2 },
+        color:   players.map(p => TEAM_COLORS[p.team] || '#aaa'),
+        size:    players.map(p => Math.max(8, Math.min(32, p.shots / 8))),
+        symbol:  symbol,
+        opacity: 0.88,
+        line: {
+          color: players.map(p => TEAM_COLORS[p.team] || '#aaa'),
+          width: symbol === 'x' ? 2.5 : 1.2,
+        },
       },
       text: players.map(p =>
         `<b style="color:${TEAM_COLORS[p.team] || '#fff'}">${p.player}</b><br>` +
@@ -232,8 +242,8 @@ function render() {
     };
   }
 
-  const trOver  = makeTrace(over,  'Overperformer',  '#00C853');
-  const trUnder = makeTrace(under, 'Underperformer', '#FF5252');
+  const trOver  = makeTrace(over,  'Overperformer  ●', 'circle');
+  const trUnder = makeTrace(under, 'Underperformer ✕', 'x');
 
   // Goals = xG diagonal reference line
   const diagMax = MAX_VAL;
